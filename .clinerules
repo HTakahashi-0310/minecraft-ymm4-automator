@@ -8,3 +8,5 @@
 ## Error Handling & Token Optimization
 - **Test Failure Limit**: During implementation/testing phases, if a test/build fails **2 consecutive times**, stop automated retry loops immediately.
 - **Escalation Protocol**: Organize the failure output (stack trace, error message, and brief root-cause hypothesis), present it clearly to the human, and **wait for explicit user instructions** before proceeding.
+
+- Python/pytest execution: Use `.venv\Scripts\` (Windows) explicitly for running python and pytest.
