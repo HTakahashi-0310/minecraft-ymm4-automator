@@ -1,0 +1,22 @@
+{
+  "title": "テスト台本",
+  "fps": 30.0,
+  "lines": [
+    {
+      "character": "ずんだもん",
+      "text": "AE2の自動クラフト設定ができたのだ！",
+      "estimatedDurationSec": 3.5,
+      "sourceVideoPath": "video1.mp4",
+      "highlightStart": "12:00",
+      "highlightEnd": "14:30"
+    },
+    {
+      "character": "ずんだもん",
+      "text": "次は鉱石の自動精錬だ！",
+      "estimatedDurationSec": 2.0,
+      "sourceVideoPath": "video2.mp4",
+      "highlightStart": "00:05",
+      "highlightEnd": "00:08"
+    }
+  ]
+}
