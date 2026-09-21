@@ -1,0 +1,10 @@
+# Agent Rules for Minecraft YMM4 Automator
+- Python 3.10+, dataclasses use `from dataclasses import dataclass, field`
+- Type hints (`typing`) are mandatory for all public functions/classes.
+- Timecodes in IR should explicitly support seconds (int/float) or standardized "MM:SS" format; include conversion helpers in `core/time_utils.py`.
+- YMM4 `.ymmp` structure must mimic real YMM4 json keys (e.g., items array, voice items, volume, speed, playback position).
+- Do not modify files outside current phase scope without explicit confirmation.
+
+## Error Handling & Token Optimization
+- **Test Failure Limit**: During implementation/testing phases, if a test/build fails **2 consecutive times**, stop automated retry loops immediately.
+- **Escalation Protocol**: Organize the failure output (stack trace, error message, and brief root-cause hypothesis), present it clearly to the human, and **wait for explicit user instructions** before proceeding.
