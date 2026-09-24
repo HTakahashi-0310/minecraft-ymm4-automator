@@ -212,6 +212,11 @@ def test_build_ymm4_dict_structure() -> None:
     assert first_video["ContentOffset"] == "00:12:00.0000000"
     assert first_video["Layer"] == 0
     assert first_video["PlaybackRate"] == 100.0
+    # FadeIn / FadeOut はアニメーションオブジェクトではなくフラットな数値
+    assert first_video["FadeIn"] == 0.0
+    assert first_video["FadeOut"] == 0.0
+    assert isinstance(first_video["FadeIn"], (int, float))
+    assert isinstance(first_video["FadeOut"], (int, float))
 
     # VoiceItem のキー検証
     first_voice = voice_items[0]
@@ -222,6 +227,8 @@ def test_build_ymm4_dict_structure() -> None:
     assert first_voice["VoiceLength"] == "00:00:03.5000000"
     assert first_voice["Layer"] == 2
     assert first_voice["JimakuVisibility"] == "UseCharacterSetting"
+    # WordWrap は YMM4 仕様に存在しないため出力しない
+    assert "WordWrap" not in first_voice
 
     # Characters
     characters = data["Characters"]
