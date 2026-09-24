@@ -204,21 +204,20 @@ def test_build_ymm4_dict_structure() -> None:
     assert len(video_items) == 2
     assert len(voice_items) == 2
 
-    # VideoItem のキー検証
+    # VideoItem のキー検証（配置と再生に必要な最低限のみ）
     first_video = video_items[0]
     assert first_video["FilePath"] == "video1.mp4"
     assert first_video["Frame"] == 0
     assert first_video["Length"] == 105
     assert first_video["ContentOffset"] == "00:12:00.0000000"
     assert first_video["Layer"] == 0
-    assert first_video["PlaybackRate"] == 100.0
-    # FadeIn / FadeOut はアニメーションオブジェクトではなくフラットな数値
-    assert first_video["FadeIn"] == 0.0
-    assert first_video["FadeOut"] == 0.0
-    assert isinstance(first_video["FadeIn"], (int, float))
-    assert isinstance(first_video["FadeOut"], (int, float))
+    # 装飾・アニメーション系プロパティは出力しない
+    assert "Volume" not in first_video
+    assert "FadeIn" not in first_video
+    assert "FadeOut" not in first_video
+    assert "KeyFrames" not in first_video
 
-    # VoiceItem のキー検証
+    # VoiceItem のキー検証（配置と再生に必要な最低限のみ）
     first_voice = voice_items[0]
     assert first_voice["CharacterName"] == "ずんだもん"
     assert first_voice["Serif"] == "AE2の自動クラフト設定ができたのだ！"
@@ -226,15 +225,21 @@ def test_build_ymm4_dict_structure() -> None:
     assert first_voice["Length"] == 105
     assert first_voice["VoiceLength"] == "00:00:03.5000000"
     assert first_voice["Layer"] == 2
-    assert first_voice["JimakuVisibility"] == "UseCharacterSetting"
-    # WordWrap は YMM4 仕様に存在しないため出力しない
+    # 装飾・アニメーション系プロパティは出力しない
     assert "WordWrap" not in first_voice
+    assert "Font" not in first_voice
+    assert "FontSize" not in first_voice
+    assert "DisplayDirection" not in first_voice
+    assert "HideDirection" not in first_voice
+    assert "KeyFrames" not in first_voice
 
-    # Characters
+    # Characters（キャラクター設定の最低限のみ）
     characters = data["Characters"]
     assert len(characters) == 1
     assert characters[0]["Name"] == "ずんだもん"
     assert characters[0]["GroupName"] == "VOICEVOX"
+    assert "Volume" not in characters[0]
+    assert "KeyGesture" not in characters[0]
 
 
 def test_export_ymm4(tmp_path: Path) -> None:

@@ -3,8 +3,12 @@
 IR（:mod:`core.ir`）のタイムライン情報（VideoItem / VoiceItem）から、
 YMM4 が読み込める .ymmp（JSON）を直接生成する。
 
-``samples/`` の参考 .ymmp 構造（トップレベルキー・タイムライン・
-VideoItem / VoiceItem / Characters のキー構成）に準拠する。
+出力方針:
+- タイムラインには「編集のベースとなる動画アイテム」と
+  「キャラクター設定に従って生成された音声＋字幕アイテム」のみを配置する。
+- YMM4 は省略されたプロパティに対してデフォルト値を自動適用するため、
+  装飾・アニメーション系のプロパティ（座標アニメーション、Bezier、
+  DisplayDirection、HideDirection、Font 関連等）は出力しない。
 """
 
 from __future__ import annotations
@@ -23,141 +27,34 @@ _TYPE_VERTICAL_BPM_LINE = (
 )
 
 
-def _animation(value: float) -> Dict[str, object]:
-    """YMM4 のアニメーション構造（Values/Span/AnimationType/Bezier）を生成する。"""
-    return {
-        "Values": [{"Value": value}],
-        "Span": 0.0,
-        "AnimationType": "なし",
-        "Bezier": {
-            "Points": [
-                {
-                    "Point": {"X": 0.0, "Y": 0.0},
-                    "ControlPoint1": {"X": -0.3, "Y": -0.3},
-                    "ControlPoint2": {"X": 0.3, "Y": 0.3},
-                },
-                {
-                    "Point": {"X": 1.0, "Y": 1.0},
-                    "ControlPoint1": {"X": -0.3, "Y": -0.3},
-                    "ControlPoint2": {"X": 0.3, "Y": 0.3},
-                },
-            ],
-            "IsQuadratic": False,
-        },
-    }
-
-
-def _key_frames() -> Dict[str, object]:
-    """空のキーフレーム構造を生成する。"""
-    return {"Frames": [], "Count": 0}
-
-
 def _build_video_item(item: VideoItem) -> Dict[str, object]:
-    """VideoItem を .ymmp のアイテム辞書に変換する。"""
+    """VideoItem を .ymmp のアイテム辞書に変換する。
+
+    配置と再生に必要な最低限のプロパティのみを出力する。
+    """
     return {
         "$type": _TYPE_VIDEO_ITEM,
-        "IsWaveformEnabled": False,
         "FilePath": item.file_path,
-        "AudioTrackIndex": item.audio_track_index,
-        "Volume": _animation(item.volume),
-        "Pan": _animation(0.0),
-        "PlaybackRate": item.playback_rate,
-        "ContentOffset": item.content_offset,
-        "IsLooped": item.is_looped,
-        "EchoIsEnabled": False,
-        "EchoInterval": 0.0,
-        "EchoAttenuation": 0.0,
-        "AudioEffects": [],
-        "X": _animation(0.0),
-        "Y": _animation(0.0),
-        "Z": _animation(0.0),
-        "Opacity": _animation(100.0),
-        "Zoom": _animation(100.0),
-        "Rotation": _animation(0.0),
-        "FadeIn": 0.0,
-        "FadeOut": 0.0,
-        "Blend": "Normal",
-        "IsInverted": False,
-        "IsClippingWithObjectAbove": False,
-        "IsAlwaysOnTop": False,
-        "IsZOrderEnabled": False,
-        "VideoEffects": [],
-        "Group": 0,
-        "Frame": item.frame,
         "Layer": item.layer,
-        "KeyFrames": _key_frames(),
+        "Frame": item.frame,
         "Length": item.length,
-        "Remark": "",
-        "IsLocked": False,
-        "IsHidden": False,
+        "ContentOffset": item.content_offset,
     }
 
 
 def _build_voice_item(item: VoiceItem) -> Dict[str, object]:
-    """VoiceItem を .ymmp のアイテム辞書に変換する。"""
+    """VoiceItem を .ymmp のアイテム辞書に変換する。
+
+    配置と再生に必要な最低限のプロパティのみを出力する。
+    """
     return {
         "$type": _TYPE_VOICE_ITEM,
-        "IsWaveformEnabled": False,
         "CharacterName": item.character_name,
         "Serif": item.serif,
-        "Decorations": [],
-        "Hatsuon": "",
-        "Pronounce": None,
         "VoiceLength": item.voice_length,
-        "VoiceCache": None,
-        "Volume": _animation(item.volume),
-        "Pan": _animation(0.0),
-        "PlaybackRate": item.playback_rate,
-        "VoiceParameter": None,
-        "ContentOffset": item.content_offset,
-        "VoiceFadeIn": 0.0,
-        "VoiceFadeOut": 0.0,
-        "EchoIsEnabled": False,
-        "EchoInterval": 0.0,
-        "EchoAttenuation": 0.0,
-        "AudioEffects": [],
-        "JimakuVisibility": item.jimaku_visibility,
-        "Y": _animation(0.0),
-        "X": _animation(0.0),
-        "Z": _animation(0.0),
-        "Opacity": _animation(100.0),
-        "Zoom": _animation(100.0),
-        "Rotation": _animation(0.0),
-        "JimakuFadeIn": 0.0,
-        "JimakuFadeOut": 0.0,
-        "Blend": "Normal",
-        "IsInverted": False,
-        "IsClippingWithObjectAbove": False,
-        "IsAlwaysOnTop": False,
-        "IsZOrderEnabled": False,
-        "Font": item.font,
-        "FontSize": _animation(item.font_size),
-        "LineHeight2": 0.0,
-        "LetterSpacing2": 0.0,
-        "MaxWidth": 0.0,
-        "BasePoint": item.base_point,
-        "FontColor": item.font_color,
-        "Style": "Normal",
-        "StyleColor": "#FF000000",
-        "Bold": False,
-        "Italic": False,
-        "IsTrimEndSpace": True,
-        "IsDevidedPerCharacter": False,
-        "DisplayInterval": 0.0,
-        "DisplayDirection": "LeftToRight",
-        "HideInterval": 0.0,
-        "HideDirection": "LeftToRight",
-        "JimakuVideoEffects": [],
-        "TachieFaceParameter": None,
-        "TachieFaceEffects": [],
-        "Group": 0,
-        "Frame": item.frame,
         "Layer": item.layer,
-        "KeyFrames": _key_frames(),
+        "Frame": item.frame,
         "Length": item.length,
-        "Remark": "",
-        "IsLocked": False,
-        "IsHidden": False,
     }
 
 
@@ -168,7 +65,10 @@ def _character_color(name: str) -> str:
 
 
 def _build_characters(project: Project) -> List[Dict[str, object]]:
-    """VoiceItem のキャラクター名から Characters 配列を生成する。"""
+    """VoiceItem のキャラクター名から Characters 配列を生成する。
+
+    キャラクター設定（音声合成 API 等）に必要な最低限のプロパティのみを出力する。
+    """
     characters: List[Dict[str, object]] = []
     seen: set[str] = set()
     for item in project.voice_items:
@@ -181,12 +81,7 @@ def _build_characters(project: Project) -> List[Dict[str, object]]:
                 "GroupName": "VOICEVOX",
                 "Color": _character_color(item.character_name),
                 "Layer": item.layer,
-                "KeyGesture": {"Key": 0, "Modifiers": 2},
                 "Voice": {"API": "voicevox", "Arg": ""},
-                "Volume": _animation(item.volume),
-                "Pan": _animation(0.0),
-                "PlaybackRate": item.playback_rate,
-                "VoiceParameter": None,
             }
         )
     return characters

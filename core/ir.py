@@ -21,16 +21,16 @@ from core.time_utils import TimeCode
 class VideoItem:
     """YMM4 の映像アイテム（VideoItem）1つ分の情報。
 
+    配置と再生に必要な最低限のプロパティのみを保持する。
+    装飾・アニメーション系のプロパティは YMM4 がデフォルト値を適用するため
+    データモデルに含めない。
+
     Attributes:
         file_path: 元動画ファイルのパス。
         frame: タイムライン上の開始フレーム。
         length: アイテム長（フレーム）。
         layer: 配置レイヤー番号。
         content_offset: 動画内の再生開始位置（``"HH:MM:SS.fffffff"`` 形式）。
-        volume: 音量（0.0〜100.0）。
-        playback_rate: 再生速度（%）。
-        is_looped: ループ再生するか。
-        audio_track_index: 使用する音声トラック番号。
     """
 
     file_path: str
@@ -38,10 +38,6 @@ class VideoItem:
     length: int
     layer: int = 0
     content_offset: str = "00:00:00"
-    volume: float = 100.0
-    playback_rate: float = 100.0
-    is_looped: bool = False
-    audio_track_index: int = 0
 
 
 @dataclass
@@ -49,6 +45,7 @@ class VoiceItem:
     """YMM4 の音声アイテム（VoiceItem）1つ分の情報。
 
     セリフ長（``length``）は対応する音声の長さに一致させる。
+    配置と再生に必要な最低限のプロパティのみを保持する。
 
     Attributes:
         character_name: キャラクター名。
@@ -56,15 +53,7 @@ class VoiceItem:
         frame: タイムライン上の開始フレーム。
         length: アイテム長（フレーム）。
         layer: 配置レイヤー番号。
-        volume: 音量（0.0〜100.0）。
-        playback_rate: 再生速度（%）。
-        content_offset: 音声内の再生開始位置（``"HH:MM:SS.fffffff"`` 形式）。
         voice_length: 音声の長さ（``"HH:MM:SS.fffffff"`` 形式）。
-        font: 字幕フォント名。
-        font_size: 字幕フォントサイズ。
-        font_color: 字幕文字色（``"#AARRGGBB"`` 形式）。
-        base_point: 字幕の基準点（例: ``"CenterBottom"``）。
-        jimaku_visibility: 字幕表示設定（例: ``"UseCharacterSetting"``）。
     """
 
     character_name: str
@@ -72,15 +61,7 @@ class VoiceItem:
     frame: int
     length: int
     layer: int = 2
-    volume: float = 100.0
-    playback_rate: float = 100.0
-    content_offset: str = "00:00:00"
     voice_length: str = "00:00:00"
-    font: str = "游ゴシック Normal"
-    font_size: float = 70.0
-    font_color: str = "#FFFFFFFF"
-    base_point: str = "CenterBottom"
-    jimaku_visibility: str = "UseCharacterSetting"
 
 
 @dataclass
