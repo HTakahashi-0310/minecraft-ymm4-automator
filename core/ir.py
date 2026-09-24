@@ -1,8 +1,9 @@
 """中間データモデル層 (IR: Intermediate Representation)。
 
 Minecraft実況動画編集ツールの中間データモデルを定義する。
-動画フレーム（AviUtl換算）と台本を抽象化し、エクスポート層が
-AviUtl .exo や YMM4 台本ファイルへ変換する際の共通データ構造となる。
+YMM4 のプロジェクト（.ymmp）へ直接変換するための共通データ構造として、
+映像アイテム（VideoItem）・音声アイテム（VoiceItem）・台本（DialogueScript）を
+抽象化する。
 
 タイムコードは「秒数 (int/float)」または「MM:SS 形式の文字列」を
 明示的にサポートする（:mod:`core.time_utils` の ``TimeCode`` 型）。
@@ -13,91 +14,73 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import List, Optional
 
-from core.time_utils import TimeCode, parse_timecode
+from core.time_utils import TimeCode
 
 
 @dataclass
-class VideoClip:
-    """編集済み映像クリップ1つ分の情報。
+class VideoItem:
+    """YMM4 の映像アイテム（VideoItem）1つ分の情報。
 
     Attributes:
-        source_path: 元動画ファイルのパス。
-        source_start: ソース上の開始位置（秒数 or ``"MM:SS"``）。
-        source_end: ソース上の終了位置（秒数 or ``"MM:SS"``）。
-        timeline_start: タイムライン上の開始フレーム。
-        timeline_end: タイムライン上の終了フレーム。
-    """
-
-    source_path: str
-    source_start: TimeCode
-    source_end: TimeCode
-    timeline_start: int
-    timeline_end: int
-
-    @property
-    def source_start_sec(self) -> float:
-        """ソース開始位置（秒）。"""
-        return parse_timecode(self.source_start)
-
-    @property
-    def source_end_sec(self) -> float:
-        """ソース終了位置（秒）。"""
-        return parse_timecode(self.source_end)
-
-    @property
-    def duration_frames(self) -> int:
-        """タイムライン上のクリップ長（フレーム）。"""
-        return self.timeline_end - self.timeline_start
-
-
-@dataclass
-class EditedVideoTrack:
-    """セリフ長/ハイライトに基づきカット・トリミング配置された映像クリップ群。
-
-    Attributes:
-        name: トラック名。
-        clips: 映像クリップのリスト。
-    """
-
-    name: str = "video"
-    clips: List[VideoClip] = field(default_factory=list)
-
-
-@dataclass
-class PlaceholderObject:
-    """セリフ区間に対応する仮オブジェクト（字幕/プレースホルダ）。
-
-    長さ（フレーム数）は対応するセリフ長に一致させる。
-
-    Attributes:
-        text: 表示テキスト（セリフ）。
-        start_frame: タイムライン上の開始フレーム。
-        end_frame: タイムライン上の終了フレーム。
+        file_path: 元動画ファイルのパス。
+        frame: タイムライン上の開始フレーム。
+        length: アイテム長（フレーム）。
         layer: 配置レイヤー番号。
+        content_offset: 動画内の再生開始位置（``"HH:MM:SS.fffffff"`` 形式）。
+        volume: 音量（0.0〜100.0）。
+        playback_rate: 再生速度（%）。
+        is_looped: ループ再生するか。
+        audio_track_index: 使用する音声トラック番号。
     """
 
-    text: str
-    start_frame: int
-    end_frame: int
-    layer: int = 1
-
-    @property
-    def duration_frames(self) -> int:
-        """オブジェクト長（フレーム）。"""
-        return self.end_frame - self.start_frame
+    file_path: str
+    frame: int
+    length: int
+    layer: int = 0
+    content_offset: str = "00:00:00"
+    volume: float = 100.0
+    playback_rate: float = 100.0
+    is_looped: bool = False
+    audio_track_index: int = 0
 
 
 @dataclass
-class PlaceholderTrack:
-    """セリフ別・区間別の仮オブジェクト群。
+class VoiceItem:
+    """YMM4 の音声アイテム（VoiceItem）1つ分の情報。
+
+    セリフ長（``length``）は対応する音声の長さに一致させる。
 
     Attributes:
-        name: トラック名。
-        objects: 仮オブジェクトのリスト。
+        character_name: キャラクター名。
+        serif: セリフ本文。
+        frame: タイムライン上の開始フレーム。
+        length: アイテム長（フレーム）。
+        layer: 配置レイヤー番号。
+        volume: 音量（0.0〜100.0）。
+        playback_rate: 再生速度（%）。
+        content_offset: 音声内の再生開始位置（``"HH:MM:SS.fffffff"`` 形式）。
+        voice_length: 音声の長さ（``"HH:MM:SS.fffffff"`` 形式）。
+        font: 字幕フォント名。
+        font_size: 字幕フォントサイズ。
+        font_color: 字幕文字色（``"#AARRGGBB"`` 形式）。
+        base_point: 字幕の基準点（例: ``"CenterBottom"``）。
+        jimaku_visibility: 字幕表示設定（例: ``"UseCharacterSetting"``）。
     """
 
-    name: str = "placeholder"
-    objects: List[PlaceholderObject] = field(default_factory=list)
+    character_name: str
+    serif: str
+    frame: int
+    length: int
+    layer: int = 2
+    volume: float = 100.0
+    playback_rate: float = 100.0
+    content_offset: str = "00:00:00"
+    voice_length: str = "00:00:00"
+    font: str = "游ゴシック Normal"
+    font_size: float = 70.0
+    font_color: str = "#FFFFFFFF"
+    base_point: str = "CenterBottom"
+    jimaku_visibility: str = "UseCharacterSetting"
 
 
 @dataclass
@@ -136,15 +119,17 @@ class DialogueScript:
 
 @dataclass
 class Project:
-    """全体コンテナ。
+    """全体コンテナ（YMM4 プロジェクト相当）。
 
     Attributes:
         name: プロジェクト名。
         fps: フレームレート（例: 30.0）。
         width: 出力解像度の幅。
         height: 出力解像度の高さ。
-        video_track: 編集済み映像トラック。
-        placeholder_track: 仮オブジェクトトラック。
+        audio_hz: 音声サンプリングレート（Hz）。
+        timeline_name: タイムライン名。
+        video_items: 映像アイテムのリスト。
+        voice_items: 音声アイテムのリスト。
         script: 台本データ。
     """
 
@@ -152,6 +137,8 @@ class Project:
     fps: float = 30.0
     width: int = 1920
     height: int = 1080
-    video_track: EditedVideoTrack = field(default_factory=EditedVideoTrack)
-    placeholder_track: PlaceholderTrack = field(default_factory=PlaceholderTrack)
+    audio_hz: int = 48000
+    timeline_name: str = "メイン"
+    video_items: List[VideoItem] = field(default_factory=list)
+    voice_items: List[VoiceItem] = field(default_factory=list)
     script: DialogueScript = field(default_factory=DialogueScript)

@@ -1,7 +1,7 @@
-"""Phase 1 の動作確認テスト。
+"""Phase 1 の動作確認テスト（YMM4 .ymmp 直接生成版）。
 
-ハードコードした IR（:mod:`core.ir`）から AviUtl .exo ファイルと
-YMM4 向け台本ファイル（JSON/CSV）が正しく出力されることを検証する。
+ハードコードした IR（:mod:`core.ir`）から YMM4 プロジェクト（.ymmp）と
+台本ファイル（JSON/CSV）が正しく出力されることを検証する。
 
 出力ファイルは ``tests/output/`` に生成される。
 """
@@ -16,19 +16,19 @@ from pathlib import Path
 from core.ir import (
     DialogueLine,
     DialogueScript,
-    EditedVideoTrack,
-    PlaceholderObject,
-    PlaceholderTrack,
     Project,
-    VideoClip,
+    VideoItem,
+    VoiceItem,
 )
 from core.time_utils import (
     format_timecode,
+    format_ymm4_timecode,
     frames_to_seconds,
     parse_timecode,
+    parse_ymm4_timecode,
     seconds_to_frames,
 )
-from exporter.exo_exporter import build_exo_text, export_exo
+from exporter.ymm4_exporter import build_ymm4_dict, export_ymm4
 from exporter.ymm4_script_exporter import export_ymm4_csv, export_ymm4_json
 
 # テスト出力先ディレクトリ
@@ -39,42 +39,40 @@ FPS = 30.0
 
 def _build_sample_project() -> Project:
     """ハードコードされた仮データから Project を構築する。"""
-    video_track = EditedVideoTrack(
-        name="video",
-        clips=[
-            VideoClip(
-                source_path="video1.mp4",
-                source_start="12:00",
-                source_end="14:30",
-                timeline_start=0,
-                timeline_end=seconds_to_frames(3.5, FPS),
-            ),
-            VideoClip(
-                source_path="video2.mp4",
-                source_start="00:05",
-                source_end="00:08",
-                timeline_start=seconds_to_frames(3.5, FPS),
-                timeline_end=seconds_to_frames(5.5, FPS),
-            ),
-        ],
-    )
-    placeholder_track = PlaceholderTrack(
-        name="placeholder",
-        objects=[
-            PlaceholderObject(
-                text="AE2の自動クラフト設定ができたのだ！",
-                start_frame=0,
-                end_frame=seconds_to_frames(3.5, FPS),
-                layer=1,
-            ),
-            PlaceholderObject(
-                text="次は鉱石の自動精錬だ！",
-                start_frame=seconds_to_frames(3.5, FPS),
-                end_frame=seconds_to_frames(5.5, FPS),
-                layer=1,
-            ),
-        ],
-    )
+    video_items = [
+        VideoItem(
+            file_path="video1.mp4",
+            frame=0,
+            length=seconds_to_frames(3.5, FPS),
+            layer=0,
+            content_offset=format_ymm4_timecode(720.0),  # 12:00
+        ),
+        VideoItem(
+            file_path="video2.mp4",
+            frame=seconds_to_frames(3.5, FPS),
+            length=seconds_to_frames(2.0, FPS),
+            layer=0,
+            content_offset=format_ymm4_timecode(5.0),  # 00:05
+        ),
+    ]
+    voice_items = [
+        VoiceItem(
+            character_name="ずんだもん",
+            serif="AE2の自動クラフト設定ができたのだ！",
+            frame=0,
+            length=seconds_to_frames(3.5, FPS),
+            layer=2,
+            voice_length=format_ymm4_timecode(3.5),
+        ),
+        VoiceItem(
+            character_name="ずんだもん",
+            serif="次は鉱石の自動精錬だ！",
+            frame=seconds_to_frames(3.5, FPS),
+            length=seconds_to_frames(2.0, FPS),
+            layer=2,
+            voice_length=format_ymm4_timecode(2.0),
+        ),
+    ]
     script = DialogueScript(
         title="テスト台本",
         lines=[
@@ -101,8 +99,10 @@ def _build_sample_project() -> Project:
         fps=FPS,
         width=1920,
         height=1080,
-        video_track=video_track,
-        placeholder_track=placeholder_track,
+        audio_hz=48000,
+        timeline_name="メイン",
+        video_items=video_items,
+        voice_items=voice_items,
         script=script,
     )
 
@@ -136,77 +136,112 @@ def test_format_timecode() -> None:
     assert format_timecode(720.0) == "12:00"
 
 
+def test_ymm4_timecode() -> None:
+    """YMM4 の ContentOffset 形式（HH:MM:SS.fffffff）の変換を検証する。"""
+    assert format_ymm4_timecode(3.5) == "00:00:03.5000000"
+    assert format_ymm4_timecode(720.0) == "00:12:00.0000000"
+    assert parse_ymm4_timecode("00:00:03.5000000") == 3.5
+    assert parse_ymm4_timecode("00:12:00.0000000") == 720.0
+
+
 # ---------------------------------------------------------------------------
 # core/ir.py のテスト
 # ---------------------------------------------------------------------------
 
 
-def test_ir_properties() -> None:
-    """IR のプロパティ（秒換算・フレーム長）を検証する。"""
+def test_ir_items() -> None:
+    """IR の VideoItem / VoiceItem の内容を検証する。"""
     project = _build_sample_project()
-    clip = project.video_track.clips[0]
-    assert clip.source_start_sec == 720.0
-    assert clip.source_end_sec == 870.0
-    assert clip.duration_frames == 105
-
-    obj = project.placeholder_track.objects[0]
-    assert obj.duration_frames == 105
+    assert len(project.video_items) == 2
+    assert len(project.voice_items) == 2
+    assert project.video_items[0].length == 105
+    assert project.voice_items[0].length == 105
+    assert project.voice_items[0].character_name == "ずんだもん"
+    assert project.voice_items[0].serif == "AE2の自動クラフト設定ができたのだ！"
 
 
 # ---------------------------------------------------------------------------
-# exporter/exo_exporter.py のテスト
+# exporter/ymm4_exporter.py のテスト
 # ---------------------------------------------------------------------------
 
 
-def test_build_exo_text() -> None:
-    """.exo テキストの構造を検証する。"""
+def test_build_ymm4_dict_structure() -> None:
+    """.ymmp 辞書の構造（トップレベルキー・タイムライン・アイテム）を検証する。"""
     project = _build_sample_project()
-    text = build_exo_text(project)
+    data = build_ymm4_dict(project, "sample.ymmp")
 
-    # [exedit] セクション
-    assert "[exedit]" in text
-    assert "width=1920" in text
-    assert "height=1080" in text
-    assert "rate=30" in text
-    assert "length=165" in text  # 5.5 秒 * 30fps
+    # トップレベルキー（sample の .ymmp と一致）
+    assert set(data.keys()) == {
+        "FilePath",
+        "SelectedTimelineIndex",
+        "Timelines",
+        "Characters",
+        "CollapsedGroups",
+        "LayoutXml",
+        "ToolStates",
+    }
+    assert data["FilePath"] == "sample.ymmp"
+    assert data["SelectedTimelineIndex"] == 0
 
-    # 映像オブジェクト [0] / [0.0]
-    assert "[0]" in text
-    assert "start=0" in text
-    assert "end=105" in text
-    assert "name=動画" in text
-    assert "[0.0]" in text
-    assert "再生位置=720000" in text  # 12:00 = 720 秒 = 720000 ms
-    assert "ファイル名=video1.mp4" in text
+    # タイムライン
+    timeline = data["Timelines"][0]
+    assert timeline["Name"] == "メイン"
+    assert timeline["VideoInfo"] == {
+        "FPS": 30,
+        "Hz": 48000,
+        "Width": 1920,
+        "Height": 1080,
+    }
+    assert timeline["Length"] == 165  # 5.5 秒 * 30fps
+    assert timeline["MaxLayer"] == 2
+    assert timeline["LayerSettings"] == {"Items": []}
 
-    # 映像オブジェクト [1] / [1.0]
-    assert "[1]" in text
-    assert "start=105" in text
-    assert "end=165" in text
-    assert "再生位置=5000" in text  # 00:05 = 5 秒 = 5000 ms
-    assert "ファイル名=video2.mp4" in text
+    # アイテム（Frame 昇順で 4 個）
+    items = timeline["Items"]
+    assert len(items) == 4
+    video_items = [it for it in items if "VideoItem" in it["$type"]]
+    voice_items = [it for it in items if "VoiceItem" in it["$type"]]
+    assert len(video_items) == 2
+    assert len(voice_items) == 2
 
-    # テキストオブジェクト [2] / [2.0]
-    assert "[2]" in text
-    assert "layer=1" in text
-    assert "name=テキスト" in text
-    assert "[2.0]" in text
-    assert "テキスト=AE2の自動クラフト設定ができたのだ！" in text
-    assert "テキスト=次は鉱石の自動精錬だ！" in text
+    # VideoItem のキー検証
+    first_video = video_items[0]
+    assert first_video["FilePath"] == "video1.mp4"
+    assert first_video["Frame"] == 0
+    assert first_video["Length"] == 105
+    assert first_video["ContentOffset"] == "00:12:00.0000000"
+    assert first_video["Layer"] == 0
+    assert first_video["PlaybackRate"] == 100.0
+
+    # VoiceItem のキー検証
+    first_voice = voice_items[0]
+    assert first_voice["CharacterName"] == "ずんだもん"
+    assert first_voice["Serif"] == "AE2の自動クラフト設定ができたのだ！"
+    assert first_voice["Frame"] == 0
+    assert first_voice["Length"] == 105
+    assert first_voice["VoiceLength"] == "00:00:03.5000000"
+    assert first_voice["Layer"] == 2
+    assert first_voice["JimakuVisibility"] == "UseCharacterSetting"
+
+    # Characters
+    characters = data["Characters"]
+    assert len(characters) == 1
+    assert characters[0]["Name"] == "ずんだもん"
+    assert characters[0]["GroupName"] == "VOICEVOX"
 
 
-def test_export_exo(tmp_path: Path) -> None:
-    """.exo ファイルが出力され、内容が検証できることを確認する。"""
+def test_export_ymm4(tmp_path: Path) -> None:
+    """.ymmp ファイルが出力され、JSON としてパース可能（構文エラーなし）であることを確認する。"""
     project = _build_sample_project()
-    output_path = str(tmp_path / "sample.exo")
-    result = export_exo(project, output_path)
+    output_path = str(tmp_path / "sample.ymmp")
+    result = export_ymm4(project, output_path)
 
     assert result == output_path
     assert os.path.exists(output_path)
-    with open(output_path, "r", encoding="utf-8") as f:
-        content = f.read()
-    assert content.startswith("[exedit]")
-    assert "ファイル名=video1.mp4" in content
+    with open(output_path, "r", encoding="utf-8-sig") as f:
+        data = json.load(f)
+    assert data["Timelines"][0]["Length"] == 165
+    assert len(data["Timelines"][0]["Items"]) == 4
 
 
 # ---------------------------------------------------------------------------
@@ -265,11 +300,11 @@ def test_generate_sample_outputs() -> None:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     project = _build_sample_project()
 
-    exo_path = export_exo(project, str(OUTPUT_DIR / "sample.exo"))
+    ymm4_path = export_ymm4(project, str(OUTPUT_DIR / "sample.ymmp"))
     json_path = export_ymm4_json(project, str(OUTPUT_DIR / "script.json"))
     csv_path = export_ymm4_csv(project, str(OUTPUT_DIR / "script.csv"))
 
-    assert os.path.exists(exo_path)
+    assert os.path.exists(ymm4_path)
     assert os.path.exists(json_path)
     assert os.path.exists(csv_path)
 
@@ -278,6 +313,6 @@ if __name__ == "__main__":
     # pytest を使わず直接実行した場合も成果物を生成できるようにする
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     project = _build_sample_project()
-    print("EXO :", export_exo(project, str(OUTPUT_DIR / "sample.exo")))
+    print("YMMP:", export_ymm4(project, str(OUTPUT_DIR / "sample.ymmp")))
     print("JSON:", export_ymm4_json(project, str(OUTPUT_DIR / "script.json")))
     print("CSV :", export_ymm4_csv(project, str(OUTPUT_DIR / "script.csv")))
